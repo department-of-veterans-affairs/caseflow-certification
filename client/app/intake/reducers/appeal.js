@@ -24,13 +24,13 @@ const updateFromServerIntake = (state, serverIntake) => {
       $set: Boolean(serverIntake.id)
     },
     docketType: {
-      $set: serverIntake.docket_type
+      $set: serverIntake.docketType
     },
     receiptDate: {
-      $set: serverIntake.receipt_date
+      $set: serverIntake.receiptDate
     },
     veteranIsNotClaimant: {
-      $set: serverIntake.veteran_is_not_claimant
+      $set: serverIntake.veteranIsNotClaimant
     },
 
     // TODO do we need this at all?
@@ -38,13 +38,13 @@ const updateFromServerIntake = (state, serverIntake) => {
       $set: true
     },
     claimant: {
-      $set: serverIntake.veteran_is_not_claimant ? serverIntake.claimant : null
+      $set: serverIntake.veteranIsNotClaimant ? serverIntake.claimant : null
     },
     payeeCode: {
       $set: serverIntake.payeeCode
     },
     legacyOptInApproved: {
-      $set: serverIntake.legacy_opt_in_approved
+      $set: serverIntake.legacyOptInApproved
     },
     legacyAppeals: {
       $set: serverIntake.legacyAppeals

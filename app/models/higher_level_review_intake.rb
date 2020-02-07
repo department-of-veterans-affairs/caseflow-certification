@@ -8,10 +8,8 @@ class HigherLevelReviewIntake < ClaimReviewIntake
   end
 
   def ui_hash
-    super.merge(
-      same_office: detail.same_office,
-      informal_conference: detail.informal_conference
-    )
+    # binding.pry
+    Intake::IntakeSerializer.new(self).serializable_hash[:data][:attributes]
   end
 
   private
