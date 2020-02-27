@@ -7,6 +7,8 @@
 
 # rubocop:disable Metrics/ClassLength
 class RequestIssue < ApplicationRecord
+  self.ignored_columns = ["vacols_id", "vacols_sequence_id"]
+
   include Asyncable
   include HasBusinessLine
   include DecisionSyncable
@@ -24,8 +26,8 @@ class RequestIssue < ApplicationRecord
   has_many :remand_reasons, through: :decision_issues
   has_many :duplicate_but_ineligible, class_name: "RequestIssue", foreign_key: "ineligible_due_to_id"
   has_many :hearing_issue_notes
-  has_one :legacy_issue_optin
   has_many :legacy_issues
+  has_many :legacy_issue_optins, through: :legacy_issues
   belongs_to :correction_request_issue, class_name: "RequestIssue", foreign_key: "corrected_by_request_issue_id"
   belongs_to :ineligible_due_to, class_name: "RequestIssue", foreign_key: "ineligible_due_to_id"
   belongs_to :contested_decision_issue, class_name: "DecisionIssue"
@@ -205,6 +207,7 @@ class RequestIssue < ApplicationRecord
   end
 
   delegate :veteran, to: :decision_review
+  attr_accessor :vacols_id, :vacols_sequence_id
 
   def create_for_claim_review!
     return unless decision_review.is_a?(ClaimReview)
@@ -215,7 +218,7 @@ class RequestIssue < ApplicationRecord
     update!(end_product_establishment: epe) if epe
 
     RequestIssueCorrectionCleaner.new(self).remove_dta_request_issue! if correction?
-    handle_legacy_issues!
+    create_legacy_issue!
   end
 
   def end_product_code
@@ -299,7 +302,7 @@ class RequestIssue < ApplicationRecord
 
   def special_issues
     specials = []
-    specials << { code: "ASSOI", narrative: Constants.VACOLS_DISPOSITIONS_BY_ID.O } if legacy_issue_opted_in?
+    specials << { code: "ASSOI", narrative: Constants.VACOLS_DISPOSITIONS_BY_ID.O } if legacy_issues_opted_in?
     specials << { code: "SSR", narrative: "Same Station Review" } if decision_review.try(:same_office)
     return specials unless specials.empty?
   end
@@ -408,16 +411,8 @@ class RequestIssue < ApplicationRecord
     end
   end
 
-  def vacols_issue
-    return unless vacols_id && vacols_sequence_id
-
-    @vacols_issue ||= AppealRepository.issues(vacols_id).find do |issue|
-      issue.vacols_sequence_id == vacols_sequence_id
-    end
-  end
-
-  def legacy_issue_opted_in?
-    eligible? && vacols_id && vacols_sequence_id
+  def legacy_issues_opted_in?
+    eligible? && legacy_issues.any?
   end
 
   def close!(status:, closed_at_value: Time.zone.now)
@@ -443,7 +438,7 @@ class RequestIssue < ApplicationRecord
     return unless end_product_establishment&.reload&.status_canceled?
 
     close!(status: :end_product_canceled) do
-      legacy_issue_optin&.flag_for_rollback!
+      legacy_issue_optins.each(&:flag_for_rollback!)
     end
   end
 
@@ -457,7 +452,7 @@ class RequestIssue < ApplicationRecord
 
   def remove!
     close!(status: :removed) do
-      legacy_issue_optin&.flag_for_rollback!
+      legacy_issue_optins.each(&:flag_for_rollback!)
 
       # If the decision issue is not associated with any other request issue, also delete
       decision_issues.each(&:soft_delete_on_removed_request_issue)
@@ -595,32 +590,16 @@ class RequestIssue < ApplicationRecord
     duplicate_of_issue_in_active_review? ? ineligible_due_to.review_title : nil
   end
 
-  def handle_legacy_issues!
-    create_legacy_issue!
-    create_legacy_issue_optin!
-  end
-
-  private
-
   def create_legacy_issue!
     return unless vacols_id && vacols_sequence_id
 
     legacy_issues.create!(
       vacols_id: vacols_id,
       vacols_sequence_id: vacols_sequence_id
-    )
+    ).tap(&:create_optin!)
   end
 
-  def create_legacy_issue_optin!
-    return unless legacy_issue_opted_in?
-
-    LegacyIssueOptin.create!(
-      request_issue: self,
-      original_disposition_code: vacols_issue.disposition_id,
-      original_disposition_date: vacols_issue.disposition_date,
-      legacy_issue: legacy_issues.first
-    )
-  end
+  private
 
   # When a request issue already has a rating in VBMS, prevent user from editing it.
   # LockedRatingError indicates that the matching rating issue could be locked,
@@ -845,7 +824,7 @@ class RequestIssue < ApplicationRecord
 
   def check_for_legacy_issue_not_withdrawn!
     return unless eligible?
-    return unless vacols_id
+    return unless legacy_issues.any?
 
     if !decision_review.legacy_opt_in_approved
       self.ineligible_reason = :legacy_issue_not_withdrawn
@@ -854,16 +833,11 @@ class RequestIssue < ApplicationRecord
 
   def check_for_legacy_appeal_not_eligible!
     return unless eligible?
-    return unless vacols_id
-    return unless decision_review.serialized_legacy_appeals.any?
+    return unless legacy_issues.any?
 
-    unless vacols_issue.eligible_for_opt_in? && legacy_appeal_eligible_for_opt_in?
+    unless legacy_issues.any?(:eligible_for_opt_in?)
       self.ineligible_reason = :legacy_appeal_not_eligible
     end
-  end
-
-  def legacy_appeal_eligible_for_opt_in?
-    vacols_issue.legacy_appeal.eligible_for_soc_opt_in?(decision_review.receipt_date)
   end
 
   def check_for_active_request_issue_by_rating!
