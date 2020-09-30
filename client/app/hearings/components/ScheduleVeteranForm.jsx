@@ -1,7 +1,13 @@
 /* eslint-disable camelcase */
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { CENTRAL_OFFICE_HEARING, HEARING_CONVERSION_TYPES } from '../constants';
+import {
+  TRAVEL_BOARD_HEARING,
+  VIDEO_HEARING,
+  VIRTUAL_HEARING,
+  CENTRAL_OFFICE_HEARING,
+  HEARING_CONVERSION_TYPES
+} from '../constants';
 import {
   RegionalOfficeDropdown,
   AppealHearingLocationsDropdown,
@@ -18,7 +24,6 @@ import { isEmpty, orderBy } from 'lodash';
 
 export const ScheduleVeteranForm = ({
   virtual,
-  requestType,
   appellantTitle,
   appeal,
   hearing,
@@ -29,17 +34,51 @@ export const ScheduleVeteranForm = ({
 }) => {
   const ro = hearing?.regionalOffice || initialRegionalOffice;
   const location = hearing?.hearingLocation || appeal?.hearingLocation;
-  const video = requestType === 'Video';
   const availableHearingLocations = orderBy(appeal?.availableHearingLocations || [], ['distance'], ['asc']);
   const dynamic = ro !== appeal?.closestRegionalOffice || isEmpty(appeal?.availableHearingLocations);
 
-  const handleChange = () => {
-    if (virtual) {
-      return props.onChange('virtualHearing', null);
+  const getOriginalRequestType = () => {
+    if (appeal?.readableOriginalHearingRequestType === TRAVEL_BOARD_HEARING) {
+      // For COVID-19, travel board appeals can have either a video or virtual hearing scheduled. In this case,
+      // we consider a travel board hearing as a video hearing, which enables both video and virtual options in
+      // the HearingTypeDropdown
+      return VIDEO_HEARING;
     }
 
-    return props.onChange('virtualHearing', { status: 'pending' });
+    // The default is video hearing if the appeal isn't associated with an RO.
+    return appeal?.readableOriginalHearingRequestType ?? VIDEO_HEARING;
   };
+  const originalRequestType = getOriginalRequestType();
+  const video = originalRequestType === VIDEO_HEARING;
+
+  const handleChange = () => {
+    if (virtual) {
+      // Change the hearing form to recalculate the regional office hearing days
+      return props.onChange('assignHearing', {
+        virtualHearing: null,
+        regionalOffice: appeal.closestRegionalOffice,
+        hearingDay: {}
+      });
+    }
+
+    // Set the form to contain central office hearing days
+    return props.onChange('assignHearing', {
+      virtualHearing: { status: 'pending' },
+      regionalOffice: 'C',
+      hearingDay: {}
+    });
+  };
+
+  useEffect(
+    () => {
+      // Initializing a virtual hearing object when the initial request type is virtual to
+      // auto-select the virtual option in the HearingTypeDropdown.
+      if (!virtual) {
+        handleChange();
+      }
+    },
+    []
+  );
 
   return (
     <React.Fragment>
@@ -47,7 +86,7 @@ export const ScheduleVeteranForm = ({
         <HearingTypeDropdown
           enableFullPageConversion
           update={handleChange}
-          requestType={hearing?.requestType}
+          originalRequestType={originalRequestType}
           virtualHearing={hearing?.virtualHearing}
         />
       </div>
@@ -64,14 +103,14 @@ export const ScheduleVeteranForm = ({
               key={`hearingDate__${ro}`}
               regionalOffice={ro}
               value={hearing?.hearingDay || initialHearingDate}
-              onChange={(hearingDay) => props.onChange('hearingDay', hearingDay)}
+              onChange={(hearingDay) => props.onChange('assignHearing', { hearingDay })}
             />
             <HearingTime
               vertical
               errorMessage={errors?.scheduledTimeString}
               label="Hearing Time"
               enableZone
-              onChange={(scheduledTimeString) => props.onChange('scheduledTimeString', scheduledTimeString)}
+              onChange={(scheduledTimeString) => props.onChange('assignHearing', { scheduledTimeString })}
               value={hearing?.scheduledTimeString}
             />
           </div>
@@ -81,9 +120,11 @@ export const ScheduleVeteranForm = ({
               errors={errors}
               video={video}
               update={(_, virtualHearing) =>
-                props.onChange('virtualHearing', {
-                  ...hearing?.virtualHearing,
-                  ...virtualHearing,
+                props.onChange('assignHearing', {
+                  virtualHearing: {
+                    ...hearing?.virtualHearing,
+                    ...virtualHearing,
+                  }
                 })
               }
               appellantTitle={appellantTitle}
@@ -96,9 +137,11 @@ export const ScheduleVeteranForm = ({
               errors={errors}
               video={video}
               update={(_, virtualHearing) =>
-                props.onChange('virtualHearing', {
-                  ...hearing?.virtualHearing,
-                  ...virtualHearing,
+                props.onChange('assignHearing', {
+                  virtualHearing: {
+                    ...hearing?.virtualHearing,
+                    ...virtualHearing,
+                  }
                 })
               }
               appellantTitle={appellantTitle}
@@ -122,7 +165,7 @@ export const ScheduleVeteranForm = ({
           />
           <RegionalOfficeDropdown
             errorMessage={errors?.regionalOffice}
-            onChange={(regionalOffice) => props.onChange('regionalOffice', regionalOffice)}
+            onChange={(regionalOffice) => props.onChange('assignHearing', { regionalOffice })}
             value={ro}
             validateValueOnMount
           />
@@ -134,7 +177,7 @@ export const ScheduleVeteranForm = ({
                 regionalOffice={ro}
                 appealId={appeal.externalId}
                 value={location}
-                onChange={(hearingLocation) => props.onChange('hearingLocation', hearingLocation)}
+                onChange={(hearingLocation) => props.onChange('assignHearing', { hearingLocation })}
                 dynamic={dynamic}
                 staticHearingLocations={availableHearingLocations}
               />
@@ -143,7 +186,7 @@ export const ScheduleVeteranForm = ({
                 key={`hearingDate__${ro}`}
                 regionalOffice={ro}
                 value={hearing.hearingDay || initialHearingDate}
-                onChange={(hearingDay) => props.onChange('hearingDay', hearingDay)}
+                onChange={(hearingDay) => props.onChange('assignHearing', { hearingDay })}
               />
               <HearingTime
                 regionalOffice={ro}
@@ -151,7 +194,7 @@ export const ScheduleVeteranForm = ({
                 vertical
                 label="Hearing Time"
                 enableZone
-                onChange={(scheduledTimeString) => props.onChange('scheduledTimeString', scheduledTimeString)}
+                onChange={(scheduledTimeString) => props.onChange('assignHearing', { scheduledTimeString })}
                 value={hearing.scheduledTimeString}
               />
 
@@ -172,7 +215,6 @@ ScheduleVeteranForm.propTypes = {
   initialRegionalOffice: PropTypes.string,
   initialHearingDate: PropTypes.string,
   appellantTitle: PropTypes.string,
-  requestType: PropTypes.string
 };
 
 /* eslint-enable camelcase */
