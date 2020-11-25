@@ -587,9 +587,15 @@ class LegacyAppeal < CaseflowRecord
   end
 
   def in_location?(location)
-    fail UnknownLocationError unless LOCATION_CODES[location]
+    fail(UnknownLocationError, "Unknown location: #{location}") unless LOCATION_CODES[location]
 
     location_code == LOCATION_CODES[location]
+  end
+
+  # Returns whether or not a case is tracked in Caseflow. For legacy appeals,
+  # the location code in VACOLS is used to determine where a case is.
+  def tracked_by_caseflow?
+    in_location? :caseflow
   end
 
   cache_attribute :case_assignment_exists do
@@ -907,7 +913,7 @@ class LegacyAppeal < CaseflowRecord
   end
 
   def assigned_to_location
-    return location_code unless location_code_is_caseflow?
+    return location_code unless tracked_by_caseflow?
 
     recently_updated_task = Task.any_recently_updated(
       tasks.active.visible_in_queue_table_view,
@@ -1038,10 +1044,6 @@ class LegacyAppeal < CaseflowRecord
     return nil if participant_id.blank?
 
     @bgs_address_service ||= BgsAddressService.new(participant_id: participant_id)
-  end
-
-  def location_code_is_caseflow?
-    location_code == LOCATION_CODES[:caseflow]
   end
 
   def matched_document(type, vacols_datetime)

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-describe AssignHearingDispositionTask, :all_dbs do
+describe AssignHearingDispositionTask do
   shared_examples "virtual hearing is cleaned up" do
     it "cleans up the virtual hearing", :aggregate_failures do
       hearing.reload
@@ -452,7 +452,7 @@ describe AssignHearingDispositionTask, :all_dbs do
       end
 
       context "the appeal is a legacy appeal" do
-        let(:vacols_case) { create(:case, bfcurloc: LegacyAppeal::LOCATION_CODES[:schedule_hearing]) }
+        let(:vacols_case) { create(:case, bfcurloc: LegacyAppeal::LOCATION_CODES[:caseflow]) }
         let(:appeal) { create(:legacy_appeal, vacols_case: vacols_case) }
         let(:hearing) { create(:legacy_hearing, appeal: appeal, disposition: disposition) }
         let(:disposition) { :C }
@@ -622,7 +622,7 @@ describe AssignHearingDispositionTask, :all_dbs do
       end
 
       context "the appeal is a legacy appeal" do
-        let(:vacols_case) { create(:case, bfcurloc: LegacyAppeal::LOCATION_CODES[:schedule_hearing]) }
+        let!(:vacols_case) { create(:case, bfcurloc: LegacyAppeal::LOCATION_CODES[:caseflow]) }
         let(:appeal) { create(:legacy_appeal, vacols_case: vacols_case) }
         let(:hearing) { create(:legacy_hearing, appeal: appeal, disposition: disposition) }
         let(:disposition) { :C }
@@ -639,6 +639,13 @@ describe AssignHearingDispositionTask, :all_dbs do
             expect(disposition_task.reload.completed?).to be_truthy
             expect(hearing_task.reload.completed?).to be_truthy
             expect(vacols_case.reload.bfcurloc).to eq(LegacyAppeal::LOCATION_CODES[:transcription])
+          end
+
+          context "but the case is not in CASEFLOW location" do
+            let!(:vacols_case) { create(:case, bfcurloc: LegacyAppeal::LOCATION_CODES[:case_storage]) }
+            it "fails" do
+              expect { subject }.to raise_error(HearingTask::HearingTaskNotCompletable)
+            end
           end
         end
       end

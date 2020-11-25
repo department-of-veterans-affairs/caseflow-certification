@@ -10,6 +10,7 @@ FactoryBot.define do
     folder { association :folder, ticknum: bfkey, tinum: bfkey }
 
     bfregoff { "RO18" }
+    bfcurloc { "CASEFLOW" }
     bfdloout { Time.zone.now }
 
     trait :assigned do
@@ -232,6 +233,7 @@ FactoryBot.define do
 
     trait :status_complete do
       bfmpro { "HIS" }
+      bfcurloc { LegacyAppeal::LOCATION_CODES[:closed] }
     end
 
     trait :status_advance do

@@ -174,7 +174,6 @@ class AppealRepository
       set_vacols_values(appeal: appeal, case_record: case_record)
     end
 
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     def set_vacols_values(appeal:, case_record:)
       correspondent_record = case_record.correspondent
       folder_record = case_record.folder
@@ -230,7 +229,6 @@ class AppealRepository
 
       appeal
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     # :nocov:
     def issues(vacols_id)
