@@ -92,6 +92,7 @@ Rails/Present:
 Metrics/MethodLength:
   Max: 20
   Exclude:
+    - app/schemas/hearings_schemas.rb
     - "spec/**/*"
 
 Metrics/ClassLength:
