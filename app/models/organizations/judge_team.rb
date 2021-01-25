@@ -30,6 +30,10 @@ class JudgeTeam < Organization
     admins.first
   end
 
+  def admin
+    admins.first
+  end
+
   def can_receive_task?(_task)
     false
   end

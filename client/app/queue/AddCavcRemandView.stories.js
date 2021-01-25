@@ -43,3 +43,4 @@ const Template = ({ cavcRemandFeature, mdrFeature, reversalFeature, dismissalFea
 };
 
 export const Default = Template.bind({});
+Default.args = { cavcRemandToggled: true };

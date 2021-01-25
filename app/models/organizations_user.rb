@@ -48,4 +48,12 @@ class OrganizationsUser < CaseflowRecord
       organization.is_a?(JudgeTeam) && organization.judge.eql?(user)
     end
   end
+
+  def self.judge_team_has_admin?(organization)
+    organization.is_a?(JudgeTeam) && !!organization.admin
+  end
+
+  def self.user_is_judge_of_team?(user, organization)
+    organization.is_a?(JudgeTeam) && organization.judge.eql?(user)
+  end
 end

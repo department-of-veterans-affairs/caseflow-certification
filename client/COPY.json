@@ -166,6 +166,17 @@
   "CAVC_EXTENSION_REQUEST_DENY_SUCCESS_TITLE": "You have denied extension",
   "CAVC_EXTENSION_REQUEST_DENY_SUCCESS_DETAIL": "This task can be completed to distribute to a judge for further processing",
 
+  "CAVC_EXTENSION_REQUEST_TITLE": "Review extension request",
+  "CAVC_EXTENSION_REQUEST_DECISION_LABEL": "How will you proceed?",
+  "CAVC_EXTENSION_REQUEST_GRANT": "grant",
+  "CAVC_EXTENSION_REQUEST_GRANT_HELP_TEXT": "Task will go on hold for selected number of days",
+  "CAVC_EXTENSION_REQUEST_DENY": "deny",
+  "CAVC_EXTENSION_REQUEST_DENY_HELP_TEXT": "Marks the extension request as denied",
+  "CAVC_EXTENSION_REQUEST_GRANT_SUCCESS_TITLE": "This case has been put on hold for %s days",
+  "CAVC_EXTENSION_REQUEST_GRANT_SUCCESS_DETAIL": "You can find this case in the on hold tab of you team's queue",
+  "CAVC_EXTENSION_REQUEST_DENY_SUCCESS_TITLE": "You have denied extension",
+  "CAVC_EXTENSION_REQUEST_DENY_SUCCESS_DETAIL": "This task can be completed to distribute to a judge for further processing",
+
   "EDIT_NOD_DATE_MODAL_TITLE": "Edit NOD Date",
   "EDIT_NOD_DATE_MODAL_DESCRIPTION": "**Editing the NOD date affects the time it takes for a Veteran to receive a response to their appeal.**",
   "EDIT_NOD_DATE_LABEL": "NOD Date",
@@ -529,7 +540,6 @@
   "SELF_ASSIGNED_MAIL_TASK_CREATION_SUCCESS_TITLE": "You have successfully created a new %s mail task",
   "SELF_ASSIGNED_MAIL_TASK_CREATION_SUCCESS_MESSAGE": "This task will remain in your Queue. Assign or take action on this at any time through your actions dropdown.",
 
-  "CASE_TIMELINE_HEADER": "Below is the history of this case. Soon, you'll be able to see many more details.",
   "CASE_TIMELINE_DISPATCHED_FROM_BVA": "Dispatched from BVA",
   "CASE_TIMELINE_DISPATCH_FROM_BVA_PENDING": "Dispatch from BVA pending",
   "CASE_TIMELINE_FORM_9_RECEIVED": "Form 9 received",
@@ -920,7 +930,9 @@
   "CANCEL_CONVERT_HEARING_TYPE_TO_VIRTUAL_MODAL_TITLE": "Cancel convert hearing to virtual",
   "CANCEL_CONVERT_HEARING_TYPE_TO_VIRTUAL_SUCCESS_DETAIL": "You have successfully cancelled the convert hearing to virtual task",
 
-  "JUDGE_TEAM_REMOVE_JUDGE_ERROR": "Cannot remove a judge from their judge team.",
+  "JUDGE_TEAM_REMOVE_JUDGE_ERROR": "Cannot remove a judge from their judge team.<<< meckila/remove-case-timeline-header
+  "JUDGE_TEAM_ATTORNEY_RIGHTS_ERROR": "Cannot edit attorney rights on non-attorneys",
+
   "JUDGE_TEAM_ADMIN_ERROR": "Cannot add more than one admin to a judge team",
   "JUDGE_TEAM_DEADMIN_JUDGE_ERROR": "Cannot remove adminship from a judge on their team",
 
