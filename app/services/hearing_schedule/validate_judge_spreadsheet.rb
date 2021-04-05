@@ -12,7 +12,8 @@ class HearingSchedule::ValidateJudgeSpreadsheet
   class JudgeTemplateNotFollowed < StandardError; end
   class JudgeDatesNotUnique < StandardError; end
   class JudgeDatesNotInRange < StandardError; end
-  class JudgeNotInDatabase < StandardError; end
+  class JudgeIdNotInDatabase < StandardError; end
+  class JudgeNameDoesNotMatchIdInDatabase < StandardError; end
 
   def initialize(spreadsheet, start_date, end_date)
     get_spreadsheet_data = HearingSchedule::GetSpreadsheetData.new(spreadsheet)
@@ -31,50 +32,46 @@ class HearingSchedule::ValidateJudgeSpreadsheet
     end
   end
 
-  # This method is only used in dev/demo mode to test the judge spreadsheet functionality
-  # :nocov:
-  def find_or_create_judges_in_vacols(vacols_judges, name, vlj_id)
-    return unless Rails.env.development? || Rails.env.demo?
-
-    if vacols_judges[vlj_id] &&
-       vacols_judges[vlj_id][:first_name] == name.split(", ")[1].strip &&
-       vacols_judges[vlj_id][:last_name] == name.split(", ")[0].strip
-      true
-    else
-      User.create_judge_in_vacols(name.split(", ")[1].strip, name.split(", ")[0].strip, vlj_id)
-    end
-  end
-  # :nocov:
-
-  def judge_in_vacols?(vacols_judges, name, vlj_id)
-    return find_or_create_judges_in_vacols(vacols_judges, name, vlj_id) if Rails.env.development? || Rails.env.demo?
-
-    vacols_judges[vlj_id] &&
-      vacols_judges[vlj_id][:first_name].casecmp(name.split(", ")[1].strip.downcase).zero? &&
-      vacols_judges[vlj_id][:last_name].casecmp(name.split(", ")[0].strip.downcase).zero?
-  end
-
   def filter_incorrectly_formatted_dates
     @spreadsheet_data.reject do |row|
-      HearingSchedule::DateValidators.new(row["date"]).date_correctly_formatted?
-    end.pluck("date")
+      HearingSchedule::DateValidators.new(row[:date]).date_correctly_formatted?
+    end.pluck(:date)
   end
 
   def filter_nonunique_judges
-    HearingSchedule::UniquenessValidators.new(@spreadsheet_data).duplicate_rows.pluck("vlj_id").uniq
+    HearingSchedule::UniquenessValidators.new(@spreadsheet_data).duplicate_rows.pluck(:vlj_id).uniq
   end
 
   def filter_out_of_range_dates
     out_of_range_dates = @spreadsheet_data.reject do |row|
-      HearingSchedule::DateValidators.new(row["date"], @start_date, @end_date).date_in_range?
-    end.pluck("date")
+      HearingSchedule::DateValidators.new(row[:date], @start_date, @end_date).date_in_range?
+    end.pluck(:date)
 
     out_of_range_dates.map { |date| date.strftime("%m/%d/%Y") }
   end
 
-  def filter_judges_not_in_db
-    vacols_judges = User.css_ids_by_vlj_ids(@spreadsheet_data.pluck("vlj_id").uniq)
-    @spreadsheet_data.select { |row| !judge_in_vacols?(vacols_judges, row["name"], row["vlj_id"]) }.pluck("vlj_id")
+  # This method smells of :reek:UtilityFunction
+  def judge_name_matches(row, vacols_judges)
+    last_name, first_name = row[:name].split(", ").map(&:strip)
+
+    vacols_judges[row[:vlj_id]][:first_name].casecmp(first_name).zero? &&
+      vacols_judges[row[:vlj_id]][:last_name].casecmp(last_name).zero?
+  end
+
+  def filter_rows_by_error
+    vacols_judges = User.css_ids_by_vlj_ids(@spreadsheet_data.pluck(:vlj_id).uniq)
+
+    # get rows with and without matching ids
+    rows_with_judge_id_match, rows_without_judge_id_match = @spreadsheet_data.partition do |row|
+      vacols_judges[row[:vlj_id]].present?
+    end
+
+    # check rows with matching ids for wrong names
+    rows_without_judge_name_match = rows_with_judge_id_match.reject do |row|
+      judge_name_matches(row, vacols_judges)
+    end
+
+    [rows_without_judge_id_match, rows_without_judge_name_match]
   end
 
   def validate_judge_non_availability_dates
@@ -90,15 +87,27 @@ class HearingSchedule::ValidateJudgeSpreadsheet
     if out_of_range_dates.count > 0
       @errors << JudgeDatesNotInRange.new("These dates are out of the selected range: " + out_of_range_dates.to_s)
     end
-    judges_not_in_db = filter_judges_not_in_db
-    if judges_not_in_db.count > 0
-      @errors << JudgeNotInDatabase.new("These judges are not in the database: " + judges_not_in_db.to_s)
+  end
+
+  def validate_judge_ids_and_names
+    rows_without_judge_id_match, rows_without_judge_name_match = filter_rows_by_error
+    if rows_without_judge_id_match.count > 0
+      @errors << JudgeIdNotInDatabase.new(
+        "These judges ids are not in the database: " + rows_without_judge_id_match.pluck(:vlj_id).join(", ")
+      )
+    end
+    if rows_without_judge_name_match.count > 0
+      @errors << JudgeNameDoesNotMatchIdInDatabase.new(
+        "These judges names do not match the database: " +
+          rows_without_judge_name_match.map { |row| "\"#{row[:name]}\" (id: #{row[:vlj_id]})" }.join("; ")
+      )
     end
   end
 
   def validate
     validate_judge_non_availability_template
     validate_judge_non_availability_dates
+    validate_judge_ids_and_names
     @errors
   end
 end

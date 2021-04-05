@@ -34,7 +34,7 @@ describe HearingSchedule::ValidateJudgeSpreadsheet, :all_dbs do
     end
   end
 
-  context "when the judge is not in the db" do
+  context "when the judges id is not in the db" do
     subject do
       HearingSchedule::ValidateJudgeSpreadsheet.new(
         Roo::Spreadsheet.open("spec/support/judgeNotInDb.xlsx", extension: :xlsx),
@@ -43,8 +43,50 @@ describe HearingSchedule::ValidateJudgeSpreadsheet, :all_dbs do
       ).validate
     end
 
-    it "returns JudgeNotInDatabase" do
-      expect(subject).to include HearingSchedule::ValidateJudgeSpreadsheet::JudgeNotInDatabase
+    it "returns JudgeIdNotInDatabase (not JudgeNameNotInDatabase)" do
+      expect(subject).to include HearingSchedule::ValidateJudgeSpreadsheet::JudgeIdNotInDatabase
+      expect(subject).not_to include HearingSchedule::ValidateJudgeSpreadsheet::JudgeNameDoesNotMatchIdInDatabase
+    end
+  end
+
+  context "when the judges id is in the db, but name is not" do
+    subject do
+      HearingSchedule::ValidateJudgeSpreadsheet.new(
+        Roo::Spreadsheet.open("spec/support/judgeNameNotInDb.xlsx", extension: :xlsx),
+        Date.parse("01/01/2018"),
+        Date.parse("01/06/2018")
+      ).validate
+    end
+
+    it "returns JudgeNameNotInDatabase (not JudgeIdNotInDatabase)" do
+      expect(subject).not_to include HearingSchedule::ValidateJudgeSpreadsheet::JudgeIdNotInDatabase
+      expect(subject).to include HearingSchedule::ValidateJudgeSpreadsheet::JudgeNameDoesNotMatchIdInDatabase
+    end
+  end
+
+  context "when one judges id is not in the db, and one judges name is not in the db" do
+    subject do
+      HearingSchedule::ValidateJudgeSpreadsheet.new(
+        Roo::Spreadsheet.open("spec/support/judgeOneIdAndOneNameNotInDb.xlsx", extension: :xlsx),
+        Date.parse("01/01/2018"),
+        Date.parse("01/06/2018")
+      ).validate
+    end
+
+    it "returns one JudgeNameNotInDatabase and one JudgeIdNotInDatabase" do
+      # Should produce one error with the judge vlj_id 862
+      errors = subject.find_all do |e|
+        e.instance_of?(HearingSchedule::ValidateJudgeSpreadsheet::JudgeIdNotInDatabase)
+      end
+      expect(errors.length).to eq 1
+      expect(errors.first.to_s).to match(/862/)
+
+      # Should produce one error with the judge vlj_id 860
+      errors = subject.find_all do |e|
+        e.instance_of?(HearingSchedule::ValidateJudgeSpreadsheet::JudgeNameDoesNotMatchIdInDatabase)
+      end
+      expect(errors.length).to eq 1
+      expect(errors.first.to_s).to match(/860/)
     end
   end
 
