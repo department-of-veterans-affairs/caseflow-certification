@@ -5,6 +5,18 @@ describe PushPriorityAppealsToJudgesJob, :all_dbs do
     arr.each_with_index.map { |count, i| [i, count] }.to_h
   end
 
+  let(:ready_priority_direct_cases) do
+    (1..5).map do |i|
+      appeal = create(:appeal,
+                      :with_post_intake_tasks,
+                      :advanced_on_docket_due_to_age,
+                      docket_type: Constants.AMA_DOCKETS.direct_review,
+                      receipt_date: 1.month.ago)
+      appeal.tasks.find_by(type: DistributionTask.name).update(assigned_at: i.month.ago)
+      appeal
+    end
+  end
+
   context ".distribute_non_genpop_priority_appeals" do
     before do
       allow_any_instance_of(DirectReviewDocket)
@@ -158,6 +170,8 @@ describe PushPriorityAppealsToJudgesJob, :all_dbs do
         .to receive(:priority_distributions_this_month_for_eligible_judges).and_return(
           judges.each_with_index.map { |judge, i| [judge.id, judge_distributions_this_month[i]] }.to_h
         )
+
+      ready_priority_direct_cases
     end
 
     subject { PushPriorityAppealsToJudgesJob.new.distribute_genpop_priority_appeals }
@@ -205,17 +219,6 @@ describe PushPriorityAppealsToJudgesJob, :all_dbs do
                         :type_cavc_remand,
                         :cavc_ready_for_distribution,
                         docket_type: Constants.AMA_DOCKETS.evidence_submission)
-        appeal.tasks.find_by(type: DistributionTask.name).update(assigned_at: i.month.ago)
-        appeal
-      end
-    end
-    let!(:ready_priority_direct_cases) do
-      (1..5).map do |i|
-        appeal = create(:appeal,
-                        :with_post_intake_tasks,
-                        :advanced_on_docket_due_to_age,
-                        docket_type: Constants.AMA_DOCKETS.direct_review,
-                        receipt_date: 1.month.ago)
         appeal.tasks.find_by(type: DistributionTask.name).update(assigned_at: i.month.ago)
         appeal
       end
@@ -313,11 +316,15 @@ describe PushPriorityAppealsToJudgesJob, :all_dbs do
       end
     end
 
+    let(:veteran) { create(:veteran) }
+    let(:veterans_refreshed) { Array([veteran.file_number]) }
+
     subject { job.slack_report }
 
     before do
       job.instance_variable_set(:@tied_distributions, distributed_cases)
       job.instance_variable_set(:@genpop_distributions, distributed_cases)
+      job.instance_variable_set(:@updated_veterans, veterans_refreshed)
       allow_any_instance_of(PushPriorityAppealsToJudgesJob)
         .to receive(:priority_distributions_this_month_for_eligible_judges).and_return(previous_distributions)
       allow_any_instance_of(DocketCoordinator).to receive(:genpop_priority_count).and_return(20)
@@ -345,8 +352,9 @@ describe PushPriorityAppealsToJudgesJob, :all_dbs do
       expect(subject[13].include?(ready_priority_hearing_case.uuid)).to be true
       expect(subject[13].include?(ready_priority_evidence_case.uuid)).to be true
       expect(subject[13].include?(ready_priority_direct_case.uuid)).to be true
+      expect(subject[14]).to eq COPY::PRIORITY_PUSH_WARNING_MESSAGE
 
-      expect(subject.last).to eq COPY::PRIORITY_PUSH_WARNING_MESSAGE
+      expect(subject.last).to eq "Attributes for #{veterans_refreshed.count} veteran(s) have been refreshed"
     end
   end
 
@@ -932,6 +940,63 @@ describe PushPriorityAppealsToJudgesJob, :all_dbs do
     it "only returns recently completed priority distributions" do
       expect(subject.count).to eq 1
       expect(subject.first).to eq recent_completed_priority_distribution
+    end
+  end
+
+  context ".warm_veteran_attribs_for_priority_distributions" do
+    # A non-genpop case..
+    let!(:judge_with_ready_priority_cases) do
+      create(:user).tap do |judge|
+        create(:staff, :judge_role, user: judge)
+        veteran = create(:veteran)
+        appeal = create(
+          :appeal,
+          :ready_for_distribution,
+          :advanced_on_docket_due_to_age,
+          docket_type: Constants.AMA_DOCKETS.hearing,
+          veteran: veteran
+        )
+        most_recent = create(:hearing_day, scheduled_for: 1.day.ago)
+        hearing = create(:hearing, judge: nil, disposition: "held", appeal: appeal, hearing_day: most_recent)
+        hearing.update!(judge: judge)
+      end
+    end
+
+    let(:eligible_judges) do
+      [
+        judge_with_ready_priority_cases
+      ]
+    end
+
+    # A few genpop cases..
+    let!(:job) { PushPriorityAppealsToJudgesJob.new }
+
+    let(:non_genpop_distro_cases) do
+      DistributedCase.where(distribution: job.distribute_non_genpop_priority_appeals)
+    end
+    let(:genpop_distro_cases) do
+      DistributedCase.where(distribution: job.distribute_genpop_priority_appeals)
+    end
+
+    before do
+      allow_any_instance_of(DirectReviewDocket)
+        .to receive(:nonpriority_receipts_per_year)
+        .and_return(100)
+
+      allow(Docket)
+        .to receive(:nonpriority_decisions_per_year)
+        .and_return(1000)
+      allow_any_instance_of(PushPriorityAppealsToJudgesJob).to receive(:eligible_judges).and_return(eligible_judges)
+
+      ready_priority_direct_cases
+      job.instance_variable_set(:@tied_distributions, non_genpop_distro_cases)
+      job.instance_variable_set(:@genpop_distributions, genpop_distro_cases)
+    end
+
+    subject { job.warm_veteran_attribs_for_priority_distributions }
+
+    it "calls warm_veteran_cache_for_appeals with list of case ids" do
+      expect(subject.count).to eq(4)
     end
   end
 end

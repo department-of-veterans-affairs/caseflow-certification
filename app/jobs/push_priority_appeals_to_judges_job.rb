@@ -13,6 +13,7 @@ class PushPriorityAppealsToJudgesJob < CaseflowJob
   def perform
     @tied_distributions = distribute_non_genpop_priority_appeals
     @genpop_distributions = distribute_genpop_priority_appeals
+    @updated_veterans = warm_veteran_attribs_for_priority_distributions
     send_job_report
   end
 
@@ -43,6 +44,8 @@ class PushPriorityAppealsToJudgesJob < CaseflowJob
     if appeals_not_distributed.values.flatten.any?
       add_stuck_appeals_to_report(report, appeals_not_distributed)
     end
+
+    report << "Attributes for #{@updated_veterans.count} veteran(s) have been refreshed"
 
     report
   end
@@ -146,5 +149,14 @@ class PushPriorityAppealsToJudgesJob < CaseflowJob
 
   def priority_distributions_this_month
     Distribution.priority_pushed.completed.where(completed_at: 30.days.ago..Time.zone.now)
+  end
+
+  def warm_veteran_attribs_for_priority_distributions
+    start_time = Time.zone.now
+    distro_case_ids = DistributedCase.where(distribution_id: (@tied_distributions + @genpop_distributions).pluck(:id))
+      .pluck(:case_id)
+    veterans_refreshed = UpdateVeteranAttribsService.update_veterans_for_appeals(distro_case_ids)
+    datadog_report_time_segment(segment: "warm_veteran_attribs_for_priority_distributions", start_time: start_time)
+    veterans_refreshed.uniq
   end
 end

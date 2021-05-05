@@ -461,6 +461,17 @@ class Veteran < CaseflowRecord
     self
   end
 
+  def refresh_attributes
+    begin
+      update_cached_attributes! if stale_attributes?
+    rescue ActiveRecord::RecordNotFound => error
+      Raven.capture_exception(error)
+      # if veteran could not be found. Raise exception and don't return, just ignore.
+    rescue Errno::ECONNRESET, Savon::HTTPError
+      # do nothing
+    end
+  end
+
   private
 
   def handle_bgs_share_error(error)
