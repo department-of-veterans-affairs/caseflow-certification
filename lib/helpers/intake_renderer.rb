@@ -73,6 +73,7 @@ class IntakeRenderer
     details
   end
 
+  # :nocov:
   def veteran_children(vet)
     reviews = [Appeal, HigherLevelReview, SupplementalClaim].map do |klass|
       klass.where(veteran_file_number: vet.file_number)
@@ -80,9 +81,10 @@ class IntakeRenderer
     reviews.sort_by! { |dr| dr.receipt_date || Time.zone.today }
     reviews.map { |dr| structure(dr) }
   end
+  # :nocov:
 
   def decision_review_details(dr)
-    ["rcvd #{dr.receipt_date.to_s}", dr.uuid]
+    ["rcvd #{dr.receipt_date}", dr.uuid]
   end
 
   def decision_review_children(dr)
@@ -122,6 +124,7 @@ class IntakeRenderer
     details
   end
 
+  # :nocov:
   def claimant_context(claimant)
     claimant.decision_review
   end
@@ -153,7 +156,7 @@ class IntakeRenderer
       [epe.established_at, "established"],
       [epe.last_synced_at, "last synced: #{epe.synced_status || 'nil'}"]
     ]
-    history.select { |hi| hi[0].present? }.map { |hi| "#{hi[0].to_s}: #{hi[1]}" }.sort
+    history.select { |hi| hi[0].present? }.map { |hi| "#{hi[0]}: #{hi[1]}" }.sort
   end
 
   def end_product_establishment_context(epe)
@@ -188,7 +191,7 @@ class IntakeRenderer
       child = "ineligible (#{ri.ineligible_reason})"
       if ri.ineligible_due_to_id.present?
         child = {
-          "#{child}" => ["due to #{label(ri.ineligible_due_to)}"]
+          child => ["due to #{label(ri.ineligible_due_to)}"]
         }
       end
       children << child
@@ -209,7 +212,7 @@ class IntakeRenderer
       [ri.decision_sync_attempted_at, "decision sync attempted"],
       [ri.decision_sync_canceled_at, "decision sync canceled"]
     ]
-    history.select { |hi| hi[0].present? }.map { |hi| "#{hi[0].to_s}: #{hi[1]}" }.sort
+    history.select { |hi| hi[0].present? }.map { |hi| "#{hi[0]}: #{hi[1]}" }.sort
   end
 
   def request_issue_context(ri)
@@ -251,4 +254,5 @@ class IntakeRenderer
   def truncate(text, size)
     (text.size > size) ? text[0, size - 1] + "…" : text
   end
+  # :nocov:
 end
