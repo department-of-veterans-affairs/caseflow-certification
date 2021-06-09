@@ -21,10 +21,26 @@ describe JudgeTask, :all_dbs do
     let(:second_assign_task) do
       create(:ama_judge_assign_task, assigned_to: judge, appeal: appeal)
     end
-
-    subject { second_assign_task }
+    let!(:first_review_task) do
+      create(:ama_judge_decision_review_task, assigned_to: judge, appeal: appeal)
+    end
+    let(:second_review_task) do
+      create(:ama_judge_decision_review_task, assigned_to: judge2, appeal: appeal)
+    end
 
     context "only one judge assign task can be created for an appeal" do
+      subject { second_assign_task }
+
+      it "throws an error when a second task is created" do
+        expect { subject }.to raise_error do |error|
+          expect(error).to be_a(ActiveRecord::RecordInvalid)
+        end
+      end
+    end
+
+    context "only one judge review task can be created for an appeal" do
+      subject { second_review_task }
+
       it "throws an error when a second task is created" do
         expect { subject }.to raise_error do |error|
           expect(error).to be_a(ActiveRecord::RecordInvalid)
@@ -253,7 +269,7 @@ describe JudgeTask, :all_dbs do
           it "should fail creation of second JudgeDecisionReviewTask" do
             expect(root_task.appeal.tasks.count).to eq(2), root_task.appeal.tasks.to_a.to_s
             jdrt.update(status: o_status)
-            expect { subject }.to raise_error(Caseflow::Error::DuplicateUserTask)
+            expect { subject }.to raise_error(ActiveRecord::RecordInvalid)
             expect(root_task.appeal.tasks.count).to eq(2), root_task.appeal.tasks.to_a.to_s
           end
         end
