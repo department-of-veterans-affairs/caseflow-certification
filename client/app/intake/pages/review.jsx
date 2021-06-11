@@ -70,16 +70,23 @@ const Review = (props) => {
   const intakeData = selectedForm ? props.intakeForms[selectedForm.key] : null;
 
   const submitReview = () => {
+    console.log(formProps.getValues())
+    let formValues = formProps.getValues()
+    if(!formValues.payeeCode) formValues.payeeCode = null
+    if(!formValues.claimantType) formValues.claimantType = 'veteran'
+    if(!formValues.claimant) formValues.claimant = null
+    console.log(formValues)
+    console.log(intakeData)
     if (selectedForm.category === 'decisionReview') {
-      return props.submitDecisionReview(props.intakeId, intakeData, selectedForm.formName);
+      return props.submitDecisionReview(props.intakeId, formValues, selectedForm.formName);
     }
 
     if (selectedForm.key === 'ramp_election') {
-      return props.submitRampElection(props.intakeId, intakeData);
+      return props.submitRampElection(props.intakeId, formProps.getValues());
     }
 
     if (selectedForm.key === 'ramp_refiling') {
-      return props.submitRampRefiling(props.intakeId, intakeData);
+      return props.submitRampRefiling(props.intakeId, formProps.getValues());
     }
   };
 
