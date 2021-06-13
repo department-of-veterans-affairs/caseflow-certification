@@ -37,7 +37,7 @@ Basic.args = {
   veteranFirstName: 'John',
   veteranLastName: 'Doe',
   veteranFileNumber: '987654321',
-  docketName: 'hearings',
+  docketName: 'hearing',
   caseType: 'Original',
   poaName: 'American Legion',
   docketNumber: '1800000A',
@@ -69,5 +69,5 @@ Basic.argTypes = {
     },
   },
   currentIssueCount: { control: { type: 'number' } },
-  docketName: { control: { type: 'select', options: ['', 'legacy', 'hearings'] } },
+  docketName: { control: { type: 'select', options: ['', 'legacy', 'hearing'] } },
 };
