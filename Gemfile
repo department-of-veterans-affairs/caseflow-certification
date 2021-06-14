@@ -50,6 +50,7 @@ gem "rack", "~> 2.2.3"
 gem "rails", "5.2.4.6"
 # Used to colorize output for rake tasks
 gem "rainbow"
+gem "rbtrace"
 # React
 gem "react_on_rails", "11.3.0"
 gem "redis-namespace"
@@ -61,6 +62,7 @@ gem "sass-rails", "~> 5.0"
 # Error reporting to Sentry
 gem "sentry-raven"
 gem "shoryuken", "3.1.11"
+gem "stackprof", require: false
 gem "stringex", require: false
 # catch problematic migrations at development/test time
 gem "strong_migrations"
@@ -125,9 +127,13 @@ group :development do
   gem "derailed_benchmarks"
   gem "dotenv-rails"
   gem "fasterer", require: false
+  gem "flamegraph"
   gem "foreman"
+  gem "memory_profiler"
   gem "meta_request"
+  gem "rack-mini-profiler"
   gem "ruby-prof", "~> 1.4"
+  gem "stackprof"
 end
 
 group :test do
