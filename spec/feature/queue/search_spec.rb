@@ -426,6 +426,33 @@ feature "Search", :all_dbs do
       end
     end
 
+    context "when multiple appeals found" do
+      let(:veteran) { create(:veteran, first_name: "Testy", last_name: "McTesterson") }
+      let(:today) { Time.zone.today }
+
+      let!(:appeal_wo_decision_date) { create(:appeal, veteran: veteran) }
+
+      before do
+        create(:decision_document, decision_date: today - 1.day, appeal: create(:appeal, veteran: veteran))
+        create(:decision_document, decision_date: today - 2.days, appeal: create(:appeal, veteran: veteran))
+      end
+
+      def perform_search(search_term)
+        visit "/search"
+        fill_in "searchBarEmptyList", with: search_term
+        click_on "Search"
+      end
+
+      context "when appeals exist" do
+        it "displays appeal without decision_date before those with decision dates" do
+          perform_search(veteran.ssn)
+          expect(page).to have_content("3 cases found for")
+          first_row = page.all("tbody tr").first
+          expect(first_row).to have_content(appeal_wo_decision_date.stream_docket_number)
+        end
+      end
+    end
+
     context "when appeal is associated with ssn not file number" do
       let!(:veteran) { create(:veteran, file_number: "00000000", ssn: Generators::Random.unique_ssn) }
       let!(:legacy_appeal) do
