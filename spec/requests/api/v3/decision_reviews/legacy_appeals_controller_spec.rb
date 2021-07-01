@@ -19,9 +19,56 @@ describe Api::V3::DecisionReviews::LegacyAppealsController, :all_dbs, type: :req
   let!(:legacy_appeal_3) { create(:legacy_appeal, :with_veteran, vbms_id: "987654321S", vacols_case: vacols_case_3) }
 
   describe "#index" do
-    context "when SSN used" do
+    context "when SSN supplied" do
       it "returns active legacy appeals associated with the veteran" do
-        get_legacy_appeals(veteran.ssn)
+        get_legacy_appeals(ssn: veteran.ssn)
+        legacy_appeals = JSON.parse(response.body)["data"]
+
+        expect(response).to have_http_status(:ok)
+        expect(legacy_appeals.size).to eq 1
+
+        legacy_appeals.each do |a|
+          appeal = LegacyAppeal.find(a["id"])
+          expect(appeal.veteran_file_number).to eq veteran.file_number
+          expect(appeal.status).to eq "Active"
+        end
+      end
+
+      context "when neither ssn nor file_number provided" do
+        it "returns a 422 error" do
+          get_legacy_appeals
+
+          errors = JSON.parse(response.body)["errors"][0]
+
+          expect(errors["status"]).to eq 422
+          expect(errors["title"]).to eq "Veteran file number or SSN header is required"
+        end
+      end
+
+      context "when ssn is incorrectly formatted" do
+        it "returns a 422 error" do
+          get_legacy_appeals(ssn: "0F-3GVC")
+          errors = JSON.parse(response.body)["errors"][0]
+
+          expect(errors["status"]).to eq 422
+          expect(errors["code"]).to eq "invalid_veteran_ssn"
+        end
+      end
+
+      context "when veteran does not exist" do
+        it "returns 404 error" do
+          get_legacy_appeals(ssn: "123456781")
+          errors = JSON.parse(response.body)["errors"][0]
+
+          expect(errors["status"]).to eq 404
+          expect(errors["code"]).to eq "veteran_not_found"
+        end
+      end
+    end
+
+    context "when file number supplied" do
+      it "returns active legacy appeals associated with the veteran" do
+        get_legacy_appeals(file_number: veteran.file_number)
         legacy_appeals = JSON.parse(response.body)["data"]
 
         expect(response).to have_http_status(:ok)
@@ -35,23 +82,7 @@ describe Api::V3::DecisionReviews::LegacyAppealsController, :all_dbs, type: :req
       end
     end
 
-    context "when file number used" do
-      it "returns active legacy appeals associated with the veteran" do
-        get_legacy_appeals(veteran.file_number)
-        legacy_appeals = JSON.parse(response.body)["data"]
-
-        expect(response).to have_http_status(:ok)
-        expect(legacy_appeals.size).to eq 1
-
-        legacy_appeals.each do |a|
-          appeal = LegacyAppeal.find(a["id"])
-          expect(appeal.veteran_file_number).to eq veteran.file_number
-          expect(appeal.status).to eq "Active"
-        end
-      end
-    end
-
-    def get_legacy_appeals(file_number = nil, ssn = nil)
+    def get_legacy_appeals(ssn: nil, file_number: nil)
       headers = { "Authorization": "Token #{api_key}", "X-VA-File-Number": file_number, "X-VA-SSN": ssn }
 
       get("/api/v3/decision_reviews/legacy_appeals", headers: headers)

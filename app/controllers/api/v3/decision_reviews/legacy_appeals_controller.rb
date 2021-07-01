@@ -9,7 +9,7 @@ class Api::V3::DecisionReviews::LegacyAppealsController < Api::V3::BaseControlle
     api_released?(:api_v3_legacy_appeals)
   end
 
-  before_action :validate_veteran_ssn, :validate_veteran_presence
+  before_action :validate_headers, :validate_veteran_ssn, :validate_veteran_presence
 
   def index
     render json: serialized_legacy_appeals
@@ -17,11 +17,14 @@ class Api::V3::DecisionReviews::LegacyAppealsController < Api::V3::BaseControlle
 
   private
 
+  def validate_headers
+    render_missing_headers unless veteran_ssn || file_number
+  end
+
   def validate_veteran_ssn
     return unless veteran_ssn
 
     render_invalid_veteran_ssn unless veteran_ssn.match?(SSN_REGEX)
-    ssn_formatted_correctly?
   end
 
   def validate_veteran_presence
@@ -29,22 +32,16 @@ class Api::V3::DecisionReviews::LegacyAppealsController < Api::V3::BaseControlle
   end
 
   def veteran
-    ssn_or_file_number = veteran_ssn || request.headers["X-VA-File-Number"]
+    ssn_or_file_number = veteran_ssn || file_number
     @veteran ||= Veteran.find_by_file_number_or_ssn(ssn_or_file_number)
   end
 
   def veteran_ssn
-    @veteran_ssn ||= request.headers["X-VA-SSN"]
+    @veteran_ssn ||= request.headers["X-VA-SSN"].presence
   end
 
-  def veteran_valid?
-    render_veteran_not_found unless veteran
-  end
-
-  def ssn_formatted_correctly?
-    return unless veteran_ssn
-
-    render_invalid_veteran_ssn unless veteran_ssn.match?(SSN_REGEX)
+  def file_number
+    @file_number ||= request.headers["X-VA-FILE-NUMBER"].presence
   end
 
   def render_invalid_veteran_ssn
