@@ -34,7 +34,8 @@ import {
   toggleKeyboardInfo,
   addTag,
   removeTag,
-  setPageIndex
+  clearSearch,
+  toggleTagEdit
 } from 'store/reader/documentViewer';
 import {
   selectComment,
@@ -82,7 +83,13 @@ const DocumentViewer = (props) => {
 
   // Create the dispatchers
   const actions = {
-    setPageIndex: (index) => dispatch(setPageIndex(index)),
+    handleTagEdit: (event) => () => {
+      if (event === 'focus') {
+        return dispatch(toggleTagEdit(true));
+      }
+
+      return dispatch(toggleTagEdit(false));
+    },
     changeTags: (values, deleted) => {
       // Delete tags if there are any removed
       if (deleted) {
@@ -186,10 +193,14 @@ const DocumentViewer = (props) => {
     cancelDrop: () => dispatch(cancelDrop()),
     addComment: () => dispatch(addComment()),
     saveComment: (comment, action = 'save') => {
+      // Construct a whitespace-only Regex
+      const whitespace = new RegExp(/^\s+$/);
+
       // Handle empty comments
-      if (comment.pendingComment === '' && action === 'save') {
+      if ((whitespace.test(comment.pendingComment) || whitespace.test(comment.comment)) && action === 'save') {
         return dispatch(toggleDeleteModal(comment.id));
       }
+
       // Calculate the comment data to update/create
       const data = {
         ...comment,
@@ -263,8 +274,8 @@ const DocumentViewer = (props) => {
 
     },
     overscanIndices: ({ cellCount, overscanCellsCount, startIndex, stopIndex }) => ({
-      overscanStartIndex: Math.max(0, startIndex - Math.ceil(overscanCellsCount / 2)),
-      overscanStopIndex: Math.min(cellCount - 1, stopIndex + Math.ceil(overscanCellsCount / 2))
+      overscanStartIndex: Math.max(0, startIndex - Math.ceil(overscanCellsCount)),
+      overscanStopIndex: Math.min(cellCount - 1, stopIndex + Math.ceil(overscanCellsCount))
     }),
     fitToScreen: () => {
       window.analyticsEvent(CATEGORIES.VIEW_DOCUMENT_PAGE, 'fit to screen');
@@ -303,6 +314,9 @@ const DocumentViewer = (props) => {
       gridRef.current?.scrollToPosition({ scrollTop: page * (state.viewport.height + PAGE_MARGIN) });
     },
     prevDoc: () => {
+      // Clear the document search
+      dispatch(clearSearch());
+
       const doc = state.documents[docs.prev];
 
       // Load the previous doc if found
@@ -311,6 +325,9 @@ const DocumentViewer = (props) => {
       }
     },
     nextDoc: () => {
+      // Clear the document search
+      dispatch(clearSearch());
+
       const doc = state.documents[docs.next];
 
       // Load the next doc if found

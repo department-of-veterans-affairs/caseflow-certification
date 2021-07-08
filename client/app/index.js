@@ -1,19 +1,26 @@
+// Runtime Dependencies
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 
+// Style dependencies
+import 'app/styles/app.scss';
+import 'pdfjs-dist/web/pdf_viewer.css';
+
+// External Dependencies
 import React, { Suspense } from 'react';
 import ReactOnRails from 'react-on-rails';
 import { render } from 'react-dom';
-import _ from 'lodash';
-
-// Local Dependencies
-import './styles/app.scss';
-import '../node_modules/pdfjs-dist/web/pdf_viewer.css';
+import { forOwn } from 'lodash';
 import { BrowserRouter, Switch } from 'react-router-dom';
-import BaseLayout from 'layouts/BaseLayout';
+
+// Redux Store Dependencies
 import ReduxBase from 'app/components/ReduxBase';
 import rootReducer from 'store/root';
+
+// Shared Component Dependencies
 import { ErrorBoundary } from 'components/shared/ErrorBoundary';
+import Loadable from 'components/shared/Loadable';
+import { LOGO_COLORS } from 'app/constants/AppConstants';
 
 // List of container components we render directly in  Rails .erb files
 const Router = React.lazy(() => import('app/2.0/router'));
@@ -56,7 +63,7 @@ const IntakeEdit = React.lazy(() => import('app/intakeEdit'));
 const NonComp = React.lazy(() => import('app/nonComp'));
 const AsyncableJobs = React.lazy(() => import('app/asyncableJobs'));
 const Inbox = React.lazy(() => import('app/inbox'));
-const Explain = React.lazy(() => import('app/Explain'));
+const Explain = React.lazy(() => import('app/explain'));
 
 const COMPONENTS = {
   // New Version 2.0 Root Component
@@ -99,9 +106,9 @@ const componentWrapper = (component) => (props, railsContext, domNodeId) => {
         <ReduxBase reducer={rootReducer}>
           <BrowserRouter>
             <Switch>
-              <BaseLayout appName={props.appName} {...props}>
+              <Loadable spinnerColor={LOGO_COLORS[props.appName.toUpperCase()].ACCENT}>
                 <Component {...props} />
-              </BaseLayout>
+              </Loadable>
             </Switch>
           </BrowserRouter>
         </ReduxBase>
@@ -112,7 +119,6 @@ const componentWrapper = (component) => (props, railsContext, domNodeId) => {
       )}
     </ErrorBoundary>
   );
-
   /* eslint-enable */
 
   const renderApp = (Component) => {
@@ -140,6 +146,7 @@ const componentWrapper = (component) => (props, railsContext, domNodeId) => {
         './intakeManager/index',
         './intakeEdit/index',
         './nonComp/index',
+        './2.0/router',
         './explain/index'
       ],
       () => renderApp(component)
@@ -147,6 +154,6 @@ const componentWrapper = (component) => (props, railsContext, domNodeId) => {
   }
 };
 
-_.forOwn(COMPONENTS, (component, name) =>
+forOwn(COMPONENTS, (component, name) =>
   ReactOnRails.register({ [name]: componentWrapper(component) })
 );
