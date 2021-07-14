@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-class VirtualHearingMailer < ActionMailer::Base
+class HearingMailer < ActionMailer::Base
   default from: "Board of Veterans' Appeals <BoardofVeteransAppealsHearings@messages.va.gov>"
-  layout "virtual_hearing_mailer"
+  layout "hearing_mailer"
   helper VirtualHearings::LinkHelper
-  helper VirtualHearings::AppellantLocationHelper
-  helper VirtualHearings::AppellantNameHelper
-  helper VirtualHearings::CalendarTemplateHelper
+  helper Hearings::AppellantLocationHelper
+  helper Hearings::AppellantNameHelper
+  helper Hearings::CalendarTemplateHelper
 
   def cancellation(mail_recipient:, virtual_hearing: nil)
     # Guard to prevent cancellation emails from sending to the judge
@@ -72,11 +72,11 @@ class VirtualHearingMailer < ActionMailer::Base
   attr_reader :recipient, :virtual_hearing
 
   def confirmation_calendar_invite
-    VirtualHearings::CalendarService.confirmation_calendar_invite(virtual_hearing, recipient, link)
+    Hearings::CalendarService.confirmation_calendar_invite(virtual_hearing, recipient, link)
   end
 
   def cancellation_calendar_invite
-    VirtualHearings::CalendarService.update_to_video_calendar_invite(virtual_hearing, recipient)
+    Hearings::CalendarService.update_to_video_calendar_invite(virtual_hearing, recipient)
   end
 
   def calendar_invite_name
@@ -84,7 +84,7 @@ class VirtualHearingMailer < ActionMailer::Base
     when MailRecipient::RECIPIENT_TITLES[:appellant], MailRecipient::RECIPIENT_TITLES[:representative]
       "BoardHearing.ics"
     when MailRecipient::RECIPIENT_TITLES[:judge]
-      "VirtualHearing.ics"
+      "Hearing.ics"
     end
   end
 

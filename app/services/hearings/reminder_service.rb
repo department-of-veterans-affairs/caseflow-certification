@@ -4,7 +4,7 @@
 # Service that determines whether or not a send a reminder to the appellant or representative
 # about their virtual hearing.
 
-class VirtualHearings::ReminderService
+class Hearings::ReminderService
   def initialize(virtual_hearing, last_sent_reminder)
     @virtual_hearing = virtual_hearing
     @last_sent_reminder = last_sent_reminder

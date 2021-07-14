@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class VirtualHearings::SendEmail
+class Hearings::SendEmail
   class RecipientIsDeceasedVeteran < StandardError; end
 
   attr_reader :virtual_hearing, :type
@@ -62,13 +62,13 @@ class VirtualHearings::SendEmail
 
     case type
     when "confirmation"
-      VirtualHearingMailer.confirmation(**args)
+      HearingMailer.confirmation(**args)
     when "cancellation"
-      VirtualHearingMailer.cancellation(**args)
+      HearingMailer.cancellation(**args)
     when "updated_time_confirmation"
-      VirtualHearingMailer.updated_time_confirmation(**args)
+      HearingMailer.updated_time_confirmation(**args)
     when "appellant_reminder", "representative_reminder"
-      VirtualHearingMailer.reminder(**args)
+      HearingMailer.reminder(**args)
     else
       fail ArgumentError, "Invalid type of email to send: `#{type}`"
     end
